@@ -1,0 +1,112 @@
+---
+title: "Variable Importance Heat Plot"
+output: github_document
+date: "2023-10-26"
+---
+    
+    ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+```
+
+```{r}
+# Load packages
+library(ggplot2)
+library(dplyr)
+library(viridis)
+```
+
+```{r}
+# Create data frames for each exposure group (vs. neither)
+# Include mediator variable names, and the indirect effect difference |θ - θj| for each mediator
+    # θ = the indirect effect estimate through all mediators M
+    # θj = the indirect effect estimat not through Mj 
+
+disability_chronic_pain <- data.frame(
+  mediator = c("mediator_opioid_stimulant_copresc", "mediator_has_counseling", "mediator_nonopioid_pain_rx", "mediator_has_physical_therapy", "mediator_opioid_benzo_copresc", "mediator_has_multimodal_pain_treatment_restrict", "mediator_has_tapering", "mediator_opioid_gabapentinoid_copresc", "mediator_months_opioid_rx", "mediator_prescribers_6mo_sum", "mediator_max_daily_dose_mme"),
+  Difference = c(0.000504, 0.001307, 0.007502, 0.014697, 0.018807, 0.019254, 0.060431, 0.072254, 0.228298, 0.242898, 0.272710)
+)
+
+disability_only <- data.frame(
+  mediator = c("mediator_has_tapering", "mediator_opioid_stimulant_copresc", "mediator_nonopioid_pain_rx", "mediator_has_multimodal_pain_treatment_restrict", "mediator_has_physical_therapy", "mediator_opioid_gabapentinoid_copresc", "mediator_has_counseling", "mediator_opioid_benzo_copresc", "mediator_months_opioid_rx", "mediator_max_daily_dose_mme", "mediator_prescribers_6mo_sum"),
+  Difference = c(0.000006, 0.000016, 0.000364, 0.000189, 0.000682, 0.000899, 0.000925, 0.001608, 0.002095, 0.048429, 0.060597)
+)
+
+chronic_pain_only <- data.frame(
+  mediator = c("mediator_has_counseling", "mediator_opioid_stimulant_copresc", "mediator_nonopioid_pain_rx", "mediator_opioid_benzo_copresc", "mediator_opioid_gabapentinoid_copresc", "mediator_has_tapering", "mediator_has_physical_therapy", "mediator_has_multimodal_pain_treatment_restrict", "mediator_months_opioid_rx", "mediator_prescribers_6mo_sum", "mediator_max_daily_dose_mme"),
+  Difference = c(0.000460, 0.000667, 0.001310, 0.004704, 0.007158, 0.007292, 0.007962, 0.008909, 0.057122, 0.117554, 0.162991)
+)
+```
+
+```{r}
+# Rename and order mediators for display in figure
+
+# Specify the mediator order
+desired_order <- c(
+  "Maximum Daily Dose (MME)", "Num. Months of Opioid Prescription", "Num. Unique Opioid Prescribers",
+  "Tapering", "Benzodiazapine Coprescription", "Stimulant Coprescription", "Gabapentinoid Coprescription",
+  "Non-opioid Pain Prescription", "Mental Health Counseling", "Physical Therapy", "Multimodal Pain Treatment"
+)
+
+# Specify the mediator labels
+mediator_rename <- c(
+  "mediator_has_tapering" = "Tapering",
+  "mediator_opioid_stimulant_copresc" = "Stimulant Coprescription",
+  "mediator_nonopioid_pain_rx" = "Non-opioid Pain Prescription",
+  "mediator_has_physical_therapy" = "Physical Therapy",
+  "mediator_opioid_benzo_copresc" = "Benzodiazapine Coprescription",
+  "mediator_has_multimodal_pain_treatment_restrict" = "Multimodal Pain Treatment",
+  "mediator_has_counseling" = "Mental Health Counseling",
+  "mediator_opioid_gabapentinoid_copresc" = "Gabapentinoid Coprescription",
+  "mediator_months_opioid_rx" = "Num. Months of Opioid Prescription",
+  "mediator_prescribers_6mo_sum" = "Num. Unique Opioid Prescribers",
+  "mediator_max_daily_dose_mme" = "Maximum Daily Dose (MME)"
+)
+
+# Define a function to rename and reorder the mediators
+rename_reorder_mediators <- function(df) {
+  df %>%
+    mutate(mediator = mediator_rename[mediator]) %>%
+    arrange(match(mediator, desired_order))
+}
+
+# Apply the function to each data frame
+disability_chronic_pain <- rename_reorder_mediators(disability_chronic_pain)
+disability_only <- rename_reorder_mediators(disability_only)
+chronic_pain_only <- rename_reorder_mediators(chronic_pain_only)
+
+# Convert "mediator" to a factor with the desired order
+disability_chronic_pain$mediator <- factor(disability_chronic_pain$mediator, levels = disability_chronic_pain$mediator)
+disability_only$mediator <- factor(disability_only$mediator, levels = disability_only$mediator)
+chronic_pain_only$mediator <- factor(chronic_pain_only$mediator, levels = chronic_pain_only$mediator)
+```
+
+```{r}
+# Create a merged data frame of the 3 exposure datasets and set exposure labels
+merged_data <- bind_rows(
+  data.frame(Exposure = "A. Physical Disability and Chronic Pain", disability_chronic_pain),
+  data.frame(Exposure = "B. Physical Disability Only", disability_only),
+  data.frame(Exposure = "C. Chronic Pain Only", chronic_pain_only)
+)
+```
+
+```{r}
+# Specify the order of exposure levels
+merged_data$Exposure <- factor(merged_data$Exposure, levels = c("C. Chronic Pain Only", "B. Physical Disability Only", "A. Physical Disability and Chronic Pain"))
+```
+
+```{r}
+# Create a heat plot using ggplot2
+plot <- ggplot(merged_data, aes(x = mediator, y = Exposure, fill = Difference)) +
+  geom_tile() +
+  scale_fill_viridis(option = "D", direction = 1) +  # Change the color palette to viridis
+  theme_minimal() +
+    theme(text = element_text(family = "Times")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Mediator", y = "Exposure Category")
+
+# View plot
+plot
+
+# Save plot
+ggsave("figures/variable_importance_heat_plot.pdf", plot)
+```

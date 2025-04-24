@@ -1,0 +1,848 @@
+---
+title: "Indirect Effect Result Forest Plots"
+output: github_document
+date: "2023-10-26"
+---
+    
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+```
+
+```{r}
+# Load packages
+library(tidyverse)
+library(dplyr)
+library(forestplot)
+library(gridExtra)
+library(ggplot2)
+library(patchwork)
+```
+
+## RISKY MEDIATORS
+
+## Cal 24 mo
+```{r}
+results <- read_csv(here::here("projects/mediation_unsafe_pain_mgmt/07_analysis/risky_safe/results/risky_mediators_cal_24mo.csv")) |>
+  as.data.frame() |>
+    select(-1)
+```
+
+
+``` {r}
+# Create result dataset for co-occuring physical disability only (vs. neither)
+# Include mediator/mediator grouping variable names, and the indirect effect estimate and CI
+results_risky_df <- data.frame(
+    mediator = c("Disability Only (No Mood Disorder)", 
+                 "Pain Only (No Mood Disorder)", 
+                 "Disability Only (Mood Disorder)",
+                 "Pain Only (Mood Disorder)"),
+    estimate = c(results[1, 3], results[2, 3], results[3, 3],
+                 results[4, 3]),
+    ci_lower = c(results[1, 17], results[2, 17], results[3, 17],
+                 results[4, 17]),
+    ci_upper = c(results[1, 18], results[2, 18], results[3, 18],
+                 results[4, 18]),
+    total_effect = c(results[1, 2], results[2, 2], results[3, 2],
+                 results[4, 2]),
+    total_effect_lower = c(results[1, 15], results[2, 15], results[3, 15],
+                 results[4, 15]),
+    total_effect_upper = c(results[1, 16], results[2, 16], results[3, 16],
+                 results[4, 16]),
+    ate = c(results[1, 1], results[2, 1], results[3, 1],
+                 results[4, 1]),
+    ate_ci_lower = c(results[1, 13], results[2, 13],  results[3, 13],
+                 results[4, 13]),
+    ate_ci_upper = c(results[1, 14], results[2, 14], results[3, 14],
+                 results[4, 14])
+) |>
+    mutate(type = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Pain (Mood Disorder)" | mediator == "Pain Only (Mood Disorder)" ~
+                                "Stratified, Mood Disorder",
+                            TRUE ~ "Stratified, No Mood Disorder")) |>
+    mutate(mediator = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Only (No Mood Disorder)" ~ "Disability Only vs. Neither",
+                                mediator == "Disability Pain (Mood Disorder)" | mediator == "Disability Pain (No Mood Disorder)" ~ "Disability Pain vs. Neither",
+                                mediator == "Pain Only (Mood Disorder)" | mediator == "Pain Only (No Mood Disorder)" ~ "Pain Only vs. Neither",
+           TRUE ~ mediator)) |>
+    mutate(type = factor(type, levels = c("Stratified, Mood Disorder", "Stratified, No Mood Disorder")))
+``` 
+
+Indirect effect and total effect:
+
+```{r}
+# Convert `mediator` to a factor with the desired display order
+#results_zimple_df$mediator <- factor(results_zimple_df$mediator, levels = results_zimple_df$mediator)
+
+# Create a forest plot using ggplot and manuscript formatting
+risky_plot <-
+  ggplot(results_risky_df) +
+    geom_point(aes(x = as.factor(mediator), y = total_effect, shape = factor("Total Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.factor(mediator), 
+                      ymin = total_effect_lower, ymax = total_effect_upper), width = 0) +
+    geom_point(aes(x = as.numeric(as.factor(mediator)) - 0.25, y = ate, shape = factor("ATE", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.numeric(as.factor(mediator)) - 0.25, 
+                      ymin = ate_ci_lower, ymax = ate_ci_upper), width = 0) +
+  geom_point(aes(x = as.numeric(factor(mediator)) + 0.25, y = estimate, shape = factor("Indirect Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2,
+             position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(x = as.numeric(factor(mediator)) + 0.25, ymin = ci_lower, ymax = ci_upper), width = 0,
+                position = position_dodge(width = 0.5)) +
+  labs(y = "Effect Estimate", x = "") +
+  theme_bw() + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+    axis.text.y = element_text(size = 9),
+    axis.title.x = element_text(size = 9, margin = margin(t = 5)),
+    text = element_text(family = "Times"),
+    panel.grid.major.x = element_blank(),  
+    panel.grid.minor.x = element_blank(), 
+    panel.border = element_rect(color = "black", fill = NA),  
+    panel.spacing = unit(0.5, "lines"),  
+    panel.background = element_blank(),
+    legend.key.size = unit(0.00005, "lines"),
+    legend.position = c(0.065, 0.825),
+    legend.title = element_text(size = 5),
+    legend.text = element_text(size = 5),
+    plot.title=element_text(size=10)
+  ) +
+    scale_shape_manual(values = c("ATE" = 1, "Total Effect" = 8, "Indirect Effect" = 18)) +
+    facet_wrap(~type, nrow = 1) +
+    labs(shape = "Effect Type") +
+    geom_hline(yintercept = 0, linetype = "solid", color = "black")
+
+# Add title
+risky_plot <- risky_plot +
+  ggtitle("Risky Mediators")
+
+# View and save
+risky_plot
+#ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/risky_plot_cal_24mo.pdf", risky_plot, dpi = 300)
+```
+
+## SAFE MEDIATOR
+
+## Cal 24 mo
+```{r}
+results <- read_csv(here::here("projects/mediation_unsafe_pain_mgmt/07_analysis/risky_safe/results/safe_mediators_cal_24mo.csv")) |>
+    as.data.frame() |>
+    select(-1)
+```
+
+
+``` {r}
+# Create result dataset for co-occuring physical disability only (vs. neither)
+# Include mediator/mediator grouping variable names, and the indirect effect estimate and CI
+results_safe_df <- data.frame(
+    mediator = c("Disability Only (No Mood Disorder)", 
+                 "Pain Only (No Mood Disorder)", 
+                 "Disability Only (Mood Disorder)",
+                 "Pain Only (Mood Disorder)"),
+    estimate = c(results[1, 3], results[2, 3], results[3, 3],
+                 results[4, 3]),
+    ci_lower = c(results[1, 16], results[2, 16], results[3, 16],
+                 results[4, 16]),
+    ci_upper = c(results[1, 17], results[2, 17], results[3, 17],
+                 results[4, 17]),
+    total_effect = c(results[1, 2], results[2, 2], results[3, 2],
+                     results[4, 2]),
+    total_effect_lower = c(results[1, 14], results[2, 14], results[3, 14],
+                           results[4, 14]),
+    total_effect_upper = c(results[1, 15], results[2, 15], results[3, 15],
+                           results[4, 15]),
+    ate = c(results[1, 1], results[2, 1], results[3, 1],
+            results[4, 1]),
+    ate_ci_lower = c(results[1, 12], results[2, 12],  results[3, 12],
+                     results[4, 12]),
+    ate_ci_upper = c(results[1, 13], results[2, 13], results[3, 13],
+                     results[4, 13])
+) |>
+    mutate(type = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Pain (Mood Disorder)" | mediator == "Pain Only (Mood Disorder)" ~
+                                "Stratified, Mood Disorder",
+                            TRUE ~ "Stratified, No Mood Disorder")) |>
+    mutate(mediator = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Only (No Mood Disorder)" ~ "Disability Only vs. Neither",
+                                mediator == "Disability Pain (Mood Disorder)" | mediator == "Disability Pain (No Mood Disorder)" ~ "Disability Pain vs. Neither",
+                                mediator == "Pain Only (Mood Disorder)" | mediator == "Pain Only (No Mood Disorder)" ~ "Pain Only vs. Neither",
+                                TRUE ~ mediator)) |>
+    mutate(type = factor(type, levels = c("Stratified, Mood Disorder", "Stratified, No Mood Disorder")))
+``` 
+
+Indirect effect and total effect:
+    
+    ```{r}
+# Convert `mediator` to a factor with the desired display order
+#results_zimple_df$mediator <- factor(results_zimple_df$mediator, levels = results_zimple_df$mediator)
+
+# Create a forest plot using ggplot and manuscript formatting
+safe_plot <-
+    ggplot(results_safe_df) +
+    geom_point(aes(x = as.factor(mediator), y = total_effect, shape = factor("Total Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.factor(mediator), 
+                      ymin = total_effect_lower, ymax = total_effect_upper), width = 0) +
+    geom_point(aes(x = as.numeric(as.factor(mediator)) - 0.25, y = ate, shape = factor("ATE", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.numeric(as.factor(mediator)) - 0.25, 
+                      ymin = ate_ci_lower, ymax = ate_ci_upper), width = 0) +
+    geom_point(aes(x = as.numeric(factor(mediator)) + 0.25, y = estimate, shape = factor("Indirect Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2,
+               position = position_dodge(width = 0.5)) +
+    geom_errorbar(aes(x = as.numeric(factor(mediator)) + 0.25, ymin = ci_lower, ymax = ci_upper), width = 0,
+                  position = position_dodge(width = 0.5)) +
+    labs(y = "Effect Estimate", x = "") +
+    theme_bw() + 
+    theme(
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 9),
+        axis.title.x = element_text(size = 9, margin = margin(t = 5)),
+        text = element_text(family = "Times"),
+        panel.grid.major.x = element_blank(),  
+        panel.grid.minor.x = element_blank(), 
+        panel.border = element_rect(color = "black", fill = NA),  
+        panel.spacing = unit(0.5, "lines"),  
+        panel.background = element_blank(),
+        legend.key.size = unit(0.00005, "lines"),
+        legend.title = element_text(size = 7),
+        legend.text = element_text(size = 7),
+        plot.title=element_text(size=10),
+        legend.position="none"
+    ) +
+    scale_shape_manual(values = c("ATE" = 1, "Total Effect" = 8, "Indirect Effect" = 18)) +
+    facet_wrap(~type, nrow = 1) +
+    labs(shape = "Effect Type") +
+    geom_hline(yintercept = 0, linetype = "solid", color = "black") 
+
+# Add title
+safe_plot <- safe_plot +
+    ggtitle("Physical Therapy Mediator")
+
+# View and save
+safe_plot
+#ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/safe_plot_cal_24mo.pdf", safe_plot, dpi = 300)
+```
+
+## Combining
+```{r}
+comb <- risky_plot + safe_plot + 
+  plot_layout(ncol = 1) +
+    plot_annotation(title = "OUD Comprehensive Definition (24 Months)")
+
+ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/combined_plot_cal_24mo.pdf", comb, dpi = 300)
+
+```
+
+## RISKY MEDIATORS
+
+## Cal 18 mo
+```{r}
+results <- read_csv(here::here("projects/mediation_unsafe_pain_mgmt/07_analysis/risky_safe/results/risky_mediators_cal_18mo.csv")) |>
+  as.data.frame() |>
+    select(-1)
+```
+
+
+``` {r}
+# Create result dataset for co-occuring physical disability only (vs. neither)
+# Include mediator/mediator grouping variable names, and the indirect effect estimate and CI
+results_risky_df <- data.frame(
+    mediator = c("Disability Only (No Mood Disorder)", 
+                 "Pain Only (No Mood Disorder)", 
+                 "Disability Only (Mood Disorder)",
+                 "Pain Only (Mood Disorder)"),
+    estimate = c(results[1, 3], results[2, 3], results[3, 3],
+                 results[4, 3]),
+    ci_lower = c(results[1, 17], results[2, 17], results[3, 17],
+                 results[4, 17]),
+    ci_upper = c(results[1, 18], results[2, 18], results[3, 18],
+                 results[4, 18]),
+    total_effect = c(results[1, 2], results[2, 2], results[3, 2],
+                 results[4, 2]),
+    total_effect_lower = c(results[1, 15], results[2, 15], results[3, 15],
+                 results[4, 15]),
+    total_effect_upper = c(results[1, 16], results[2, 16], results[3, 16],
+                 results[4, 16]),
+    ate = c(results[1, 1], results[2, 1], results[3, 1],
+                 results[4, 1]),
+    ate_ci_lower = c(results[1, 13], results[2, 13],  results[3, 13],
+                 results[4, 13]),
+    ate_ci_upper = c(results[1, 14], results[2, 14], results[3, 14],
+                 results[4, 14])
+) |>
+    mutate(type = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Pain (Mood Disorder)" | mediator == "Pain Only (Mood Disorder)" ~
+                                "Stratified, Mood Disorder",
+                            TRUE ~ "Stratified, No Mood Disorder")) |>
+    mutate(mediator = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Only (No Mood Disorder)" ~ "Disability Only vs. Neither",
+                                mediator == "Disability Pain (Mood Disorder)" | mediator == "Disability Pain (No Mood Disorder)" ~ "Disability Pain vs. Neither",
+                                mediator == "Pain Only (Mood Disorder)" | mediator == "Pain Only (No Mood Disorder)" ~ "Pain Only vs. Neither",
+           TRUE ~ mediator)) |>
+    mutate(type = factor(type, levels = c("Stratified, Mood Disorder", "Stratified, No Mood Disorder")))
+``` 
+
+Indirect effect and total effect:
+
+```{r}
+# Convert `mediator` to a factor with the desired display order
+#results_zimple_df$mediator <- factor(results_zimple_df$mediator, levels = results_zimple_df$mediator)
+
+# Create a forest plot using ggplot and manuscript formatting
+risky_plot <-
+  ggplot(results_risky_df) +
+    geom_point(aes(x = as.factor(mediator), y = total_effect, shape = factor("Total Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.factor(mediator), 
+                      ymin = total_effect_lower, ymax = total_effect_upper), width = 0) +
+    geom_point(aes(x = as.numeric(as.factor(mediator)) - 0.25, y = ate, shape = factor("ATE", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.numeric(as.factor(mediator)) - 0.25, 
+                      ymin = ate_ci_lower, ymax = ate_ci_upper), width = 0) +
+  geom_point(aes(x = as.numeric(factor(mediator)) + 0.25, y = estimate, shape = factor("Indirect Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2,
+             position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(x = as.numeric(factor(mediator)) + 0.25, ymin = ci_lower, ymax = ci_upper), width = 0,
+                position = position_dodge(width = 0.5)) +
+  labs(y = "Effect Estimate", x = "") +
+  theme_bw() + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+    axis.text.y = element_text(size = 9),
+    axis.title.x = element_text(size = 9, margin = margin(t = 5)),
+    text = element_text(family = "Times"),
+    panel.grid.major.x = element_blank(),  
+    panel.grid.minor.x = element_blank(), 
+    panel.border = element_rect(color = "black", fill = NA),  
+    panel.spacing = unit(0.5, "lines"),  
+    panel.background = element_blank(),
+    legend.key.size = unit(0.00005, "lines"),
+    legend.position = c(0.065, 0.825),
+    legend.title = element_text(size = 5),
+    legend.text = element_text(size = 5),
+    plot.title=element_text(size=10)
+  ) +
+    scale_shape_manual(values = c("ATE" = 1, "Total Effect" = 8, "Indirect Effect" = 18)) +
+    facet_wrap(~type, nrow = 1) +
+    labs(shape = "Effect Type") +
+    geom_hline(yintercept = 0, linetype = "solid", color = "black")
+
+# Add title
+risky_plot <- risky_plot +
+  ggtitle("Risky Mediators")
+
+# View and save
+risky_plot
+#ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/risky_plot_cal_18mo.pdf", risky_plot, dpi = 300)
+```
+
+## SAFE MEDIATOR
+
+## Cal 18 mo
+```{r}
+results <- read_csv(here::here("projects/mediation_unsafe_pain_mgmt/07_analysis/risky_safe/results/safe_mediators_cal_18mo.csv")) |>
+    as.data.frame() |>
+    select(-1)
+```
+
+
+``` {r}
+# Create result dataset for co-occuring physical disability only (vs. neither)
+# Include mediator/mediator grouping variable names, and the indirect effect estimate and CI
+results_safe_df <- data.frame(
+    mediator = c("Disability Only (No Mood Disorder)", 
+                 "Pain Only (No Mood Disorder)", 
+                 "Disability Only (Mood Disorder)",
+                 "Pain Only (Mood Disorder)"),
+    estimate = c(results[1, 3], results[2, 3], results[3, 3],
+                 results[4, 3]),
+    ci_lower = c(results[1, 16], results[2, 16], results[3, 16],
+                 results[4, 16]),
+    ci_upper = c(results[1, 17], results[2, 17], results[3, 17],
+                 results[4, 17]),
+    total_effect = c(results[1, 2], results[2, 2], results[3, 2],
+                     results[4, 2]),
+    total_effect_lower = c(results[1, 14], results[2, 14], results[3, 14],
+                           results[4, 14]),
+    total_effect_upper = c(results[1, 15], results[2, 15], results[3, 15],
+                           results[4, 15]),
+    ate = c(results[1, 1], results[2, 1], results[3, 1],
+            results[4, 1]),
+    ate_ci_lower = c(results[1, 12], results[2, 12],  results[3, 12],
+                     results[4, 12]),
+    ate_ci_upper = c(results[1, 13], results[2, 13], results[3, 13],
+                     results[4, 13])
+) |>
+    mutate(type = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Pain (Mood Disorder)" | mediator == "Pain Only (Mood Disorder)" ~
+                                "Stratified, Mood Disorder",
+                            TRUE ~ "Stratified, No Mood Disorder")) |>
+    mutate(mediator = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Only (No Mood Disorder)" ~ "Disability Only vs. Neither",
+                                mediator == "Disability Pain (Mood Disorder)" | mediator == "Disability Pain (No Mood Disorder)" ~ "Disability Pain vs. Neither",
+                                mediator == "Pain Only (Mood Disorder)" | mediator == "Pain Only (No Mood Disorder)" ~ "Pain Only vs. Neither",
+                                TRUE ~ mediator)) |>
+    mutate(type = factor(type, levels = c("Stratified, Mood Disorder", "Stratified, No Mood Disorder")))
+``` 
+
+Indirect effect and total effect:
+    
+    ```{r}
+# Convert `mediator` to a factor with the desired display order
+#results_zimple_df$mediator <- factor(results_zimple_df$mediator, levels = results_zimple_df$mediator)
+
+# Create a forest plot using ggplot and manuscript formatting
+safe_plot <-
+    ggplot(results_safe_df) +
+    geom_point(aes(x = as.factor(mediator), y = total_effect, shape = factor("Total Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.factor(mediator), 
+                      ymin = total_effect_lower, ymax = total_effect_upper), width = 0) +
+    geom_point(aes(x = as.numeric(as.factor(mediator)) - 0.25, y = ate, shape = factor("ATE", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.numeric(as.factor(mediator)) - 0.25, 
+                      ymin = ate_ci_lower, ymax = ate_ci_upper), width = 0) +
+    geom_point(aes(x = as.numeric(factor(mediator)) + 0.25, y = estimate, shape = factor("Indirect Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2,
+               position = position_dodge(width = 0.5)) +
+    geom_errorbar(aes(x = as.numeric(factor(mediator)) + 0.25, ymin = ci_lower, ymax = ci_upper), width = 0,
+                  position = position_dodge(width = 0.5)) +
+    labs(y = "Effect Estimate", x = "") +
+    theme_bw() + 
+    theme(
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 9),
+        axis.title.x = element_text(size = 9, margin = margin(t = 5)),
+        text = element_text(family = "Times"),
+        panel.grid.major.x = element_blank(),  
+        panel.grid.minor.x = element_blank(), 
+        panel.border = element_rect(color = "black", fill = NA),  
+        panel.spacing = unit(0.5, "lines"),  
+        panel.background = element_blank(),
+        legend.key.size = unit(0.00005, "lines"),
+        legend.title = element_text(size = 7),
+        legend.text = element_text(size = 7),
+        plot.title=element_text(size=10),
+        legend.position="none"
+    ) +
+    scale_shape_manual(values = c("ATE" = 1, "Total Effect" = 8, "Indirect Effect" = 18)) +
+    facet_wrap(~type, nrow = 1) +
+    labs(shape = "Effect Type") +
+    geom_hline(yintercept = 0, linetype = "solid", color = "black") 
+
+# Add title
+safe_plot <- safe_plot +
+    ggtitle("Physical Therapy Mediator")
+
+# View and save
+safe_plot
+#ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/safe_plot_cal_18mo.pdf", safe_plot, dpi = 300)
+```
+
+## Combining
+```{r}
+comb <- risky_plot + safe_plot + 
+  plot_layout(ncol = 1) +
+    plot_annotation(title = "OUD Comprehensive Definition (18 Months)")
+
+ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/combined_plot_cal_18mo.pdf", comb, dpi = 300)
+
+```
+
+## RISKY MEDIATORS
+
+## icd 24 mo
+```{r}
+results <- read_csv(here::here("projects/mediation_unsafe_pain_mgmt/07_analysis/risky_safe/results/risky_mediators_icd_24mo.csv")) |>
+    as.data.frame() |>
+    select(-1)
+```
+
+
+``` {r}
+# Create result dataset for co-occuring Physical disability only (vs. neither)
+# Include mediator/mediator grouping variable names, and the indirect effect estimate and CI
+results_risky_df <- data.frame(
+    mediator = c("Disability Only (No Mood Disorder)", 
+                 "Pain Only (No Mood Disorder)", 
+                 "Disability Only (Mood Disorder)",
+                 "Pain Only (Mood Disorder)"),
+    estimate = c(results[1, 3], results[2, 3], results[3, 3],
+                 results[4, 3]),
+    ci_lower = c(results[1, 17], results[2, 17], results[3, 17],
+                 results[4, 17]),
+    ci_upper = c(results[1, 18], results[2, 18], results[3, 18],
+                 results[4, 18]),
+    total_effect = c(results[1, 2], results[2, 2], results[3, 2],
+                     results[4, 2]),
+    total_effect_lower = c(results[1, 15], results[2, 15], results[3, 15],
+                           results[4, 15]),
+    total_effect_upper = c(results[1, 16], results[2, 16], results[3, 16],
+                           results[4, 16]),
+    ate = c(results[1, 1], results[2, 1], results[3, 1],
+            results[4, 1]),
+    ate_ci_lower = c(results[1, 13], results[2, 13],  results[3, 13],
+                     results[4, 13]),
+    ate_ci_upper = c(results[1, 14], results[2, 14], results[3, 14],
+                     results[4, 14])
+) |>
+    mutate(type = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Pain (Mood Disorder)" | mediator == "Pain Only (Mood Disorder)" ~
+                                "Stratified, Mood Disorder",
+                            TRUE ~ "Stratified, No Mood Disorder")) |>
+    mutate(mediator = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Only (No Mood Disorder)" ~ "Disability Only vs. Neither",
+                                mediator == "Disability Pain (Mood Disorder)" | mediator == "Disability Pain (No Mood Disorder)" ~ "Disability Pain vs. Neither",
+                                mediator == "Pain Only (Mood Disorder)" | mediator == "Pain Only (No Mood Disorder)" ~ "Pain Only vs. Neither",
+                                TRUE ~ mediator)) |>
+    mutate(type = factor(type, levels = c("Stratified, Mood Disorder", "Stratified, No Mood Disorder")))
+``` 
+
+Indirect effect and total effect:
+    
+    ```{r}
+# Convert `mediator` to a factor with the desired display order
+#results_zimple_df$mediator <- factor(results_zimple_df$mediator, levels = results_zimple_df$mediator)
+
+# Create a forest plot using ggplot and manuscript formatting
+risky_plot <-
+    ggplot(results_risky_df) +
+    geom_point(aes(x = as.factor(mediator), y = total_effect, shape = factor("Total Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.factor(mediator), 
+                      ymin = total_effect_lower, ymax = total_effect_upper), width = 0) +
+    geom_point(aes(x = as.numeric(as.factor(mediator)) - 0.25, y = ate, shape = factor("ATE", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.numeric(as.factor(mediator)) - 0.25, 
+                      ymin = ate_ci_lower, ymax = ate_ci_upper), width = 0) +
+    geom_point(aes(x = as.numeric(factor(mediator)) + 0.25, y = estimate, shape = factor("Indirect Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2,
+               position = position_dodge(width = 0.5)) +
+    geom_errorbar(aes(x = as.numeric(factor(mediator)) + 0.25, ymin = ci_lower, ymax = ci_upper), width = 0,
+                  position = position_dodge(width = 0.5)) +
+    labs(y = "Effect Estimate", x = "") +
+    theme_bw() + 
+    theme(
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 9),
+        axis.title.x = element_text(size = 9, margin = margin(t = 5)),
+        text = element_text(family = "Times"),
+        panel.grid.major.x = element_blank(),  
+        panel.grid.minor.x = element_blank(), 
+        panel.border = element_rect(color = "black", fill = NA),  
+        panel.spacing = unit(0.5, "lines"),  
+        panel.background = element_blank(),
+        legend.key.size = unit(0.00005, "lines"),
+        legend.position = c(0.065, 0.825),
+        legend.title = element_text(size = 5),
+        legend.text = element_text(size = 5),
+        plot.title=element_text(size=10)
+    ) +
+    scale_shape_manual(values = c("ATE" = 1, "Total Effect" = 8, "Indirect Effect" = 18)) +
+    facet_wrap(~type, nrow = 1) +
+    labs(shape = "Effect Type") +
+    geom_hline(yintercept = 0, linetype = "solid", color = "black")
+
+# Add title
+risky_plot <- risky_plot +
+    ggtitle("Risky Mediators")
+
+# View and save
+risky_plot
+#ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/risky_plot_icd_24mo.pdf", risky_plot, dpi = 300)
+```
+
+## SAFE MEDIATOR
+
+## icd 24 mo
+```{r}
+results <- read_csv(here::here("projects/mediation_unsafe_pain_mgmt/07_analysis/risky_safe/results/safe_mediators_icd_24mo.csv")) |>
+    as.data.frame() |>
+    select(-1)
+```
+
+
+``` {r}
+# Create result dataset for co-occuring Physical disability only (vs. neither)
+# Include mediator/mediator grouping variable names, and the indirect effect estimate and CI
+results_safe_df <- data.frame(
+    mediator = c("Disability Only (No Mood Disorder)", 
+                 "Pain Only (No Mood Disorder)", 
+                 "Disability Only (Mood Disorder)",
+                 "Pain Only (Mood Disorder)"),
+    estimate = c(results[1, 3], results[2, 3], results[3, 3],
+                 results[4, 3]),
+    ci_lower = c(results[1, 16], results[2, 16], results[3, 16],
+                 results[4, 16]),
+    ci_upper = c(results[1, 17], results[2, 17], results[3, 17],
+                 results[4, 17]),
+    total_effect = c(results[1, 2], results[2, 2], results[3, 2],
+                     results[4, 2]),
+    total_effect_lower = c(results[1, 14], results[2, 14], results[3, 14],
+                           results[4, 14]),
+    total_effect_upper = c(results[1, 15], results[2, 15], results[3, 15],
+                           results[4, 15]),
+    ate = c(results[1, 1], results[2, 1], results[3, 1],
+            results[4, 1]),
+    ate_ci_lower = c(results[1, 12], results[2, 12],  results[3, 12],
+                     results[4, 12]),
+    ate_ci_upper = c(results[1, 13], results[2, 13], results[3, 13],
+                     results[4, 13])
+) |>
+    mutate(type = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Pain (Mood Disorder)" | mediator == "Pain Only (Mood Disorder)" ~
+                                "Stratified, Mood Disorder",
+                            TRUE ~ "Stratified, No Mood Disorder")) |>
+    mutate(mediator = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Only (No Mood Disorder)" ~ "Disability Only vs. Neither",
+                                mediator == "Disability Pain (Mood Disorder)" | mediator == "Disability Pain (No Mood Disorder)" ~ "Disability Pain vs. Neither",
+                                mediator == "Pain Only (Mood Disorder)" | mediator == "Pain Only (No Mood Disorder)" ~ "Pain Only vs. Neither",
+                                TRUE ~ mediator)) |>
+    mutate(type = factor(type, levels = c("Stratified, Mood Disorder", "Stratified, No Mood Disorder")))
+``` 
+
+Indirect effect and total effect:
+    
+    ```{r}
+# Convert `mediator` to a factor with the desired display order
+#results_zimple_df$mediator <- factor(results_zimple_df$mediator, levels = results_zimple_df$mediator)
+
+# Create a forest plot using ggplot and manuscript formatting
+safe_plot <-
+    ggplot(results_safe_df) +
+    geom_point(aes(x = as.factor(mediator), y = total_effect, shape = factor("Total Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.factor(mediator), 
+                      ymin = total_effect_lower, ymax = total_effect_upper), width = 0) +
+    geom_point(aes(x = as.numeric(as.factor(mediator)) - 0.25, y = ate, shape = factor("ATE", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.numeric(as.factor(mediator)) - 0.25, 
+                      ymin = ate_ci_lower, ymax = ate_ci_upper), width = 0) +
+    geom_point(aes(x = as.numeric(factor(mediator)) + 0.25, y = estimate, shape = factor("Indirect Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2,
+               position = position_dodge(width = 0.5)) +
+    geom_errorbar(aes(x = as.numeric(factor(mediator)) + 0.25, ymin = ci_lower, ymax = ci_upper), width = 0,
+                  position = position_dodge(width = 0.5)) +
+    labs(y = "Effect Estimate", x = "") +
+    theme_bw() + 
+    theme(
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 9),
+        axis.title.x = element_text(size = 9, margin = margin(t = 5)),
+        text = element_text(family = "Times"),
+        panel.grid.major.x = element_blank(),  
+        panel.grid.minor.x = element_blank(), 
+        panel.border = element_rect(color = "black", fill = NA),  
+        panel.spacing = unit(0.5, "lines"),  
+        panel.background = element_blank(),
+        legend.key.size = unit(0.00005, "lines"),
+        legend.title = element_text(size = 7),
+        legend.text = element_text(size = 7),
+        plot.title=element_text(size=10),
+        legend.position="none"
+    ) +
+    scale_shape_manual(values = c("ATE" = 1, "Total Effect" = 8, "Indirect Effect" = 18)) +
+    facet_wrap(~type, nrow = 1) +
+    labs(shape = "Effect Type") +
+    geom_hline(yintercept = 0, linetype = "solid", color = "black") 
+
+# Add title
+safe_plot <- safe_plot +
+    ggtitle("Physical Therapy Mediator")
+
+# View and save
+safe_plot
+#ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/safe_plot_icd_24mo.pdf", safe_plot, dpi = 300)
+```
+
+## Combining
+```{r}
+comb <- risky_plot + safe_plot + 
+    plot_layout(ncol = 1) +
+    plot_annotation(title = "OUD ICD Definition (24 Months)")
+
+ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/combined_plot_icd_24mo.pdf", comb, dpi = 300)
+
+```
+
+## RISKY MEDIATORS
+
+## icd 18 mo
+```{r}
+results <- read_csv(here::here("projects/mediation_unsafe_pain_mgmt/07_analysis/risky_safe/results/risky_mediators_icd_18mo.csv")) |>
+    as.data.frame() |>
+    select(-1)
+```
+
+
+``` {r}
+# Create result dataset for co-occuring Physical disability only (vs. neither)
+# Include mediator/mediator grouping variable names, and the indirect effect estimate and CI
+results_risky_df <- data.frame(
+    mediator = c("Disability Only (No Mood Disorder)", 
+                 "Pain Only (No Mood Disorder)", 
+                 "Disability Only (Mood Disorder)",
+                 "Pain Only (Mood Disorder)"),
+    estimate = c(results[1, 3], results[2, 3], results[3, 3],
+                 results[4, 3]),
+    ci_lower = c(results[1, 17], results[2, 17], results[3, 17],
+                 results[4, 17]),
+    ci_upper = c(results[1, 18], results[2, 18], results[3, 18],
+                 results[4, 18]),
+    total_effect = c(results[1, 2], results[2, 2], results[3, 2],
+                     results[4, 2]),
+    total_effect_lower = c(results[1, 15], results[2, 15], results[3, 15],
+                           results[4, 15]),
+    total_effect_upper = c(results[1, 16], results[2, 16], results[3, 16],
+                           results[4, 16]),
+    ate = c(results[1, 1], results[2, 1], results[3, 1],
+            results[4, 1]),
+    ate_ci_lower = c(results[1, 13], results[2, 13],  results[3, 13],
+                     results[4, 13]),
+    ate_ci_upper = c(results[1, 14], results[2, 14], results[3, 14],
+                     results[4, 14])
+) |>
+    mutate(type = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Pain (Mood Disorder)" | mediator == "Pain Only (Mood Disorder)" ~
+                                "Stratified, Mood Disorder",
+                            TRUE ~ "Stratified, No Mood Disorder")) |>
+    mutate(mediator = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Only (No Mood Disorder)" ~ "Disability Only vs. Neither",
+                                mediator == "Disability Pain (Mood Disorder)" | mediator == "Disability Pain (No Mood Disorder)" ~ "Disability Pain vs. Neither",
+                                mediator == "Pain Only (Mood Disorder)" | mediator == "Pain Only (No Mood Disorder)" ~ "Pain Only vs. Neither",
+                                TRUE ~ mediator)) |>
+    mutate(type = factor(type, levels = c("Stratified, Mood Disorder", "Stratified, No Mood Disorder")))
+``` 
+
+Indirect effect and total effect:
+    
+    ```{r}
+# Convert `mediator` to a factor with the desired display order
+#results_zimple_df$mediator <- factor(results_zimple_df$mediator, levels = results_zimple_df$mediator)
+
+# Create a forest plot using ggplot and manuscript formatting
+risky_plot <-
+    ggplot(results_risky_df) +
+    geom_point(aes(x = as.factor(mediator), y = total_effect, shape = factor("Total Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.factor(mediator), 
+                      ymin = total_effect_lower, ymax = total_effect_upper), width = 0) +
+    geom_point(aes(x = as.numeric(as.factor(mediator)) - 0.25, y = ate, shape = factor("ATE", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.numeric(as.factor(mediator)) - 0.25, 
+                      ymin = ate_ci_lower, ymax = ate_ci_upper), width = 0) +
+    geom_point(aes(x = as.numeric(factor(mediator)) + 0.25, y = estimate, shape = factor("Indirect Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2,
+               position = position_dodge(width = 0.5)) +
+    geom_errorbar(aes(x = as.numeric(factor(mediator)) + 0.25, ymin = ci_lower, ymax = ci_upper), width = 0,
+                  position = position_dodge(width = 0.5)) +
+    labs(y = "Effect Estimate", x = "") +
+    theme_bw() + 
+    theme(
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 9),
+        axis.title.x = element_text(size = 9, margin = margin(t = 5)),
+        text = element_text(family = "Times"),
+        panel.grid.major.x = element_blank(),  
+        panel.grid.minor.x = element_blank(), 
+        panel.border = element_rect(color = "black", fill = NA),  
+        panel.spacing = unit(0.5, "lines"),  
+        panel.background = element_blank(),
+        legend.key.size = unit(0.00005, "lines"),
+        legend.position = c(0.065, 0.825),
+        legend.title = element_text(size = 5),
+        legend.text = element_text(size = 5),
+        plot.title=element_text(size=10)
+    ) +
+    scale_shape_manual(values = c("ATE" = 1, "Total Effect" = 8, "Indirect Effect" = 18)) +
+    facet_wrap(~type, nrow = 1) +
+    labs(shape = "Effect Type") +
+    geom_hline(yintercept = 0, linetype = "solid", color = "black")
+
+# Add title
+risky_plot <- risky_plot +
+    ggtitle("Risky Mediators")
+
+# View and save
+risky_plot
+#ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/risky_plot_icd_18mo.pdf", risky_plot, dpi = 300)
+```
+
+## SAFE MEDIATOR
+
+## icd 18 mo
+```{r}
+results <- read_csv(here::here("projects/mediation_unsafe_pain_mgmt/07_analysis/risky_safe/results/safe_mediators_icd_18mo.csv")) |>
+    as.data.frame() |>
+    select(-1)
+```
+
+
+``` {r}
+# Create result dataset for co-occuring Physical disability only (vs. neither)
+# Include mediator/mediator grouping variable names, and the indirect effect estimate and CI
+results_safe_df <- data.frame(
+    mediator = c("Disability Only (No Mood Disorder)", 
+                 "Pain Only (No Mood Disorder)", 
+                 "Disability Only (Mood Disorder)",
+                 "Pain Only (Mood Disorder)"),
+    estimate = c(results[1, 3], results[2, 3], results[3, 3],
+                 results[4, 3]),
+    ci_lower = c(results[1, 16], results[2, 16], results[3, 16],
+                 results[4, 16]),
+    ci_upper = c(results[1, 17], results[2, 17], results[3, 17],
+                 results[4, 17]),
+    total_effect = c(results[1, 2], results[2, 2], results[3, 2],
+                     results[4, 2]),
+    total_effect_lower = c(results[1, 14], results[2, 14], results[3, 14],
+                           results[4, 14]),
+    total_effect_upper = c(results[1, 15], results[2, 15], results[3, 15],
+                           results[4, 15]),
+    ate = c(results[1, 1], results[2, 1], results[3, 1],
+            results[4, 1]),
+    ate_ci_lower = c(results[1, 12], results[2, 12],  results[3, 12],
+                     results[4, 12]),
+    ate_ci_upper = c(results[1, 13], results[2, 13], results[3, 13],
+                     results[4, 13])
+) |>
+    mutate(type = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Pain (Mood Disorder)" | mediator == "Pain Only (Mood Disorder)" ~
+                                "Stratified, Mood Disorder",
+                            TRUE ~ "Stratified, No Mood Disorder")) |>
+    mutate(mediator = case_when(mediator == "Disability Only (Mood Disorder)" | mediator == "Disability Only (No Mood Disorder)" ~ "Disability Only vs. Neither",
+                                mediator == "Disability Pain (Mood Disorder)" | mediator == "Disability Pain (No Mood Disorder)" ~ "Disability Pain vs. Neither",
+                                mediator == "Pain Only (Mood Disorder)" | mediator == "Pain Only (No Mood Disorder)" ~ "Pain Only vs. Neither",
+                                TRUE ~ mediator)) |>
+    mutate(type = factor(type, levels = c("Stratified, Mood Disorder", "Stratified, No Mood Disorder")))
+``` 
+
+Indirect effect and total effect:
+    
+    ```{r}
+# Convert `mediator` to a factor with the desired display order
+#results_zimple_df$mediator <- factor(results_zimple_df$mediator, levels = results_zimple_df$mediator)
+
+# Create a forest plot using ggplot and manuscript formatting
+safe_plot <-
+    ggplot(results_safe_df) +
+    geom_point(aes(x = as.factor(mediator), y = total_effect, shape = factor("Total Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.factor(mediator), 
+                      ymin = total_effect_lower, ymax = total_effect_upper), width = 0) +
+    geom_point(aes(x = as.numeric(as.factor(mediator)) - 0.25, y = ate, shape = factor("ATE", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2) +
+    geom_errorbar(aes(x = as.numeric(as.factor(mediator)) - 0.25, 
+                      ymin = ate_ci_lower, ymax = ate_ci_upper), width = 0) +
+    geom_point(aes(x = as.numeric(factor(mediator)) + 0.25, y = estimate, shape = factor("Indirect Effect", levels = c("ATE", "Total Effect", "Indirect Effect"))), size = 2,
+               position = position_dodge(width = 0.5)) +
+    geom_errorbar(aes(x = as.numeric(factor(mediator)) + 0.25, ymin = ci_lower, ymax = ci_upper), width = 0,
+                  position = position_dodge(width = 0.5)) +
+    labs(y = "Effect Estimate", x = "") +
+    theme_bw() + 
+    theme(
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 9),
+        axis.title.x = element_text(size = 9, margin = margin(t = 5)),
+        text = element_text(family = "Times"),
+        panel.grid.major.x = element_blank(),  
+        panel.grid.minor.x = element_blank(), 
+        panel.border = element_rect(color = "black", fill = NA),  
+        panel.spacing = unit(0.5, "lines"),  
+        panel.background = element_blank(),
+        legend.key.size = unit(0.00005, "lines"),
+        legend.title = element_text(size = 7),
+        legend.text = element_text(size = 7),
+        plot.title=element_text(size=10),
+        legend.position="none"
+    ) +
+    scale_shape_manual(values = c("ATE" = 1, "Total Effect" = 8, "Indirect Effect" = 18)) +
+    facet_wrap(~type, nrow = 1) +
+    labs(shape = "Effect Type") +
+    geom_hline(yintercept = 0, linetype = "solid", color = "black") 
+
+# Add title
+safe_plot <- safe_plot +
+    ggtitle("Physical Therapy Mediator")
+
+# View and save
+safe_plot
+#ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/safe_plot_icd_18mo.pdf", safe_plot, dpi = 300)
+```
+
+## Combining
+```{r}
+comb <- risky_plot + safe_plot + 
+    plot_layout(ncol = 1) +
+    plot_annotation(title = "OUD ICD Definition (18 Months)")
+
+ggsave("~/disability/projects/mediation_unsafe_pain_mgmt/09_figures/risky_safe_figs/combined_plot_icd_18mo.pdf", comb, dpi = 300)
+
+```
+
+
+
+
+

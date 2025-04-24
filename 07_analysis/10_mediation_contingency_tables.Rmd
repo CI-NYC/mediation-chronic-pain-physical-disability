@@ -1,0 +1,399 @@
+---
+title: "Mediation Contingency Tables"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+# Load necessary libraries
+library(tidyverse)
+```
+
+```{r, echo = FALSE}
+drv_root <- "/mnt/general-data/disability/mediation_unsafe_pain_mgmt"
+
+disability <- readRDS(paste0(drv_root, "/subset_disability_only_ref_df.rds"))|>
+    mutate(mediator_opioid_copresc_benzo_gaba = 
+               ifelse(mediator_opioid_benzo_copresc == 1 |
+                          mediator_opioid_gaba_copresc == 1, 1, 0),
+           mediator_nonopioid_nonoverlap_mrelax_gaba_benzo = 
+               ifelse(mediator_nonopioid_nonoverlap_mrelax == 1 |
+                          mediator_nonopioid_nonoverlap_gaba == 1 |
+                          mediator_nonopioid_nonoverlap_benzo == 1, 1, 0),
+           mediator_nonopioid_nonoverlap_antidepressant_antiinflamatory = 
+               ifelse(mediator_nonopioid_nonoverlap_antidepressant == 1 |
+                          mediator_nonopioid_nonoverlap_antiinflamatory == 1, 1, 0))
+
+
+disability_subset <- disability |> # filtering to those without dep/anx/bipolar
+    filter(is.na(exposure_disability_only_subset) == FALSE)
+
+rm(disability)
+
+disability_only_no_depanx_subset <- disability_subset |> # filtering to those without dep/anx/bipolar
+    filter(depression_washout_cal == 0 &
+               anxiety_washout_cal == 0 &
+               bipolar_washout_cal == 0)
+
+disability_depanx_subset <- disability_subset |> # filtering to those with dep/anx/bipolar
+    filter(depression_washout_cal == 1 |
+               anxiety_washout_cal == 1 |
+               bipolar_washout_cal == 1)
+
+pain <- readRDS(paste0(drv_root, "/subset_pain_only_ref_df.rds")) |>
+    mutate(mediator_opioid_copresc_benzo_gaba = 
+               ifelse(mediator_opioid_benzo_copresc == 1 |
+                          mediator_opioid_gaba_copresc == 1, 1, 0),
+           mediator_nonopioid_nonoverlap_mrelax_gaba_benzo = 
+               ifelse(mediator_nonopioid_nonoverlap_mrelax == 1 |
+                          mediator_nonopioid_nonoverlap_gaba == 1 |
+                          mediator_nonopioid_nonoverlap_benzo == 1, 1, 0),
+           mediator_nonopioid_nonoverlap_antidepressant_antiinflamatory = 
+               ifelse(mediator_nonopioid_nonoverlap_antidepressant == 1 |
+                          mediator_nonopioid_nonoverlap_antiinflamatory == 1, 1, 0))
+
+pain_only_no_depanx <- pain |> # filtering to those without dep/anx/bipolar
+    filter(depression_washout_cal == 0 &
+               anxiety_washout_cal == 0 &
+               bipolar_washout_cal == 0)
+
+pain_depanx <- pain |> # filtering to those with dep/anx/bipolar
+    filter(depression_washout_cal == 1 |
+               anxiety_washout_cal == 1 |
+               bipolar_washout_cal == 1)
+
+M <- c("mediator_high_dose_longer_duration_mme", #mme
+    "mediator_opioid_gaba_copresc",
+    "mediator_opioid_mrelax_copresc", #opioid copresc
+    "mediator_nonopioid_nonoverlap_mrelax_gaba_benzo",  #nonopioid
+    "mediator_nonopioid_nonoverlap_antidepressant_antiinflamatory", #nonopioid
+    "mediator_has_physical_therapy" #PT
+)
+```
+
+### Exposure Disability Only, Has Dep/Anx/Bip
+```{r, echo = FALSE}
+contingency_tables_disability_depanx <- list()
+
+for (med in M) {
+  df <- disability_depanx_subset
+  table_name <- paste("Mediator", med, sep = "_")
+  
+  if(med != "mediator_opioid_gaba_copresc")
+  {
+  contingency_table <- table(Exposure_disability_only_depanx = df$exposure_disability_only_subset, 
+                             Mediator = df[[med]], 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  } else{
+      df$bg <- factor(case_when(df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 1 ~ "bg",
+                         df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 0 ~ "g",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 1 ~ "b",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 0 ~ "0",
+                         ), levels = c("0", "g", "b", "bg"))
+      contingency_table <- table(Exposure_disability_only_depanx = df$exposure_disability_only_subset, 
+                             Mediator = df$bg, 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  }
+  
+  contingency_tables_disability_depanx[[table_name]] <- contingency_table
+}
+
+contingency_tables_disability_depanx
+```
+
+### Exposure Disability Only, No Dep/Anx/Bip
+
+```{r, echo = FALSE}
+
+contingency_tables_disability_no_depanx <- list()
+
+for (med in M) {
+  df <- disability_only_no_depanx_subset
+  table_name <- paste("Mediator", med, sep = "_")
+    if(med != "mediator_opioid_gaba_copresc")
+  {
+  contingency_table <- table(Exposure_disability_only_no_depanx = df$exposure_disability_only_subset, 
+                             Mediator = df[[med]], 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+    }else{
+      df$bg <- factor(case_when(df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 1 ~ "bg",
+                         df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 0 ~ "g",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 1 ~ "b",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 0 ~ "0",
+                         ), levels = c("0", "g", "b", "bg"))
+      contingency_table <- table(Exposure_disability_only_depanx = df$exposure_disability_only_subset, 
+                             Mediator = df$bg, 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  }
+  
+  contingency_tables_disability_no_depanx[[table_name]] <- contingency_table
+}
+
+contingency_tables_disability_no_depanx
+```
+
+
+### Exposure Pain Only, Has Dep/Anx/Bip
+
+```{r, echo = FALSE}
+
+contingency_tables_pain_depanx <- list()
+
+for (med in M) {
+    df <- pain_depanx
+    table_name <- paste("Mediator", med, sep = "_")
+      if(med != "mediator_opioid_gaba_copresc")
+  {
+    contingency_table <- table(Exposure_pain_only_depanx = df$exposure_pain_only, 
+                               Mediator = df[[med]], 
+                               Outcome = df$oud_24mo_icd,
+                               useNA = "ifany")
+      } else{
+      df$bg <- factor(case_when(df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 1 ~ "bg",
+                         df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 0 ~ "g",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 1 ~ "b",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 0 ~ "0",
+                         ), levels = c("0", "g", "b", "bg"))
+      contingency_table <- table(Exposure_pain_only_depanx = df$exposure_pain_only, 
+                             Mediator = df$bg, 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  }
+    
+    contingency_tables_pain_depanx[[table_name]] <- contingency_table
+}
+
+contingency_tables_pain_depanx
+```
+
+### Exposure Pain Only, No Dep/Anx/Bip
+
+```{r, echo = FALSE}
+
+contingency_tables_pain_nodepanx <- list()
+
+for (med in M) {
+    df <- pain_only_no_depanx
+    table_name <- paste("Mediator", med, sep = "_")
+      if(med != "mediator_opioid_gaba_copresc")
+  {
+    contingency_table <- table(Exposure_pain_only_nodepanx = df$exposure_pain_only, 
+                               Mediator = df[[med]], 
+                               Outcome = df$oud_24mo_icd,
+                               useNA = "ifany")
+      } else{
+      df$bg <- factor(case_when(df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 1 ~ "bg",
+                         df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 0 ~ "g",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 1 ~ "b",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 0 ~ "0",
+                         ), levels = c("0", "g", "b", "bg"))
+      contingency_table <- table(Exposure_pain_only_nodepanx = df$exposure_pain_only, 
+                             Mediator = df$bg, 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  }
+    
+    contingency_tables_pain_nodepanx[[table_name]] <- contingency_table
+}
+
+contingency_tables_pain_nodepanx
+```
+
+## 12 month washout
+
+```{r, echo = FALSE}
+drv_root <- "/mnt/general-data/disability/mediation_unsafe_pain_mgmt"
+
+disability <- readRDS(paste0(drv_root, "/subset_12mo_disability_only_ref_df_updated.rds"))|>
+    mutate(mediator_opioid_copresc_benzo_gaba = 
+               ifelse(mediator_opioid_benzo_copresc == 1 |
+                          mediator_opioid_gaba_copresc == 1, 1, 0),
+           mediator_12mo_nonopioid_nonoverlap_mrelax_gaba_benzo = 
+               ifelse(mediator_12mo_nonopioid_nonoverlap_mrelax == 1 |
+                          mediator_12mo_nonopioid_nonoverlap_gaba == 1 |
+                          mediator_12mo_nonopioid_nonoverlap_benzo == 1, 1, 0),
+           mediator_12mo_nonopioid_nonoverlap_antidepressant_antiinflamatory = 
+               ifelse(mediator_12mo_nonopioid_nonoverlap_antidepressant == 1 |
+                          mediator_12mo_nonopioid_nonoverlap_antiinflamatory == 1, 1, 0))
+
+
+disability_subset <- disability |> # filtering to those without dep/anx/bipolar
+    filter(is.na(exposure_disability_only_subset) == FALSE)
+
+rm(disability)
+
+disability_only_no_depanx_subset <- disability_subset |> # filtering to those without dep/anx/bipolar
+    filter(depression_washout_cal == 0 &
+               anxiety_washout_cal == 0 &
+               bipolar_washout_cal == 0)
+
+disability_depanx_subset <- disability_subset |> # filtering to those with dep/anx/bipolar
+    filter(depression_washout_cal == 1 |
+               anxiety_washout_cal == 1 |
+               bipolar_washout_cal == 1)
+
+pain <- readRDS(paste0(drv_root, "/subset_12mo_pain_only_ref_df_updated.rds")) |>
+    mutate(mediator_opioid_copresc_benzo_gaba = 
+               ifelse(mediator_opioid_benzo_copresc == 1 |
+                          mediator_opioid_gaba_copresc == 1, 1, 0),
+           mediator_12mo_nonopioid_nonoverlap_mrelax_gaba_benzo = 
+               ifelse(mediator_12mo_nonopioid_nonoverlap_mrelax == 1 |
+                          mediator_12mo_nonopioid_nonoverlap_gaba == 1 |
+                          mediator_12mo_nonopioid_nonoverlap_benzo == 1, 1, 0),
+           mediator_12mo_nonopioid_nonoverlap_antidepressant_antiinflamatory = 
+               ifelse(mediator_12mo_nonopioid_nonoverlap_antidepressant == 1 |
+                          mediator_12mo_nonopioid_nonoverlap_antiinflamatory == 1, 1, 0))
+
+pain_only_no_depanx <- pain |> # filtering to those without dep/anx/bipolar
+    filter(depression_washout_cal == 0 &
+               anxiety_washout_cal == 0 &
+               bipolar_washout_cal == 0)
+
+pain_depanx <- pain |> # filtering to those with dep/anx/bipolar
+    filter(depression_washout_cal == 1 |
+               anxiety_washout_cal == 1 |
+               bipolar_washout_cal == 1)
+
+M <- c("mediator_12mo_high_dose_longer_duration_mme", #mme
+    "mediator_opioid_gaba_copresc",
+    "mediator_opioid_mrelax_copresc", #opioid copresc
+    "mediator_12mo_nonopioid_nonoverlap_mrelax_gaba_benzo",  #nonopioid
+    "mediator_12mo_nonopioid_nonoverlap_antidepressant_antiinflamatory", #nonopioid
+    "mediator_has_physical_therapy" #PT
+)
+```
+
+### Exposure Disability Only, Has Dep/Anx/Bip
+```{r, echo = FALSE}
+contingency_tables_disability_depanx <- list()
+
+for (med in M) {
+  df <- disability_depanx_subset
+  table_name <- paste("Mediator", med, sep = "_")
+  
+  if(med != "mediator_opioid_gaba_copresc")
+  {
+  contingency_table <- table(Exposure_disability_only_depanx = df$exposure_disability_only_subset, 
+                             Mediator = df[[med]], 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  } else{
+      df$bg <- factor(case_when(df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 1 ~ "bg",
+                         df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 0 ~ "g",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 1 ~ "b",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 0 ~ "0",
+                         ), levels = c("0", "g", "b", "bg"))
+      contingency_table <- table(Exposure_disability_only_depanx = df$exposure_disability_only_subset, 
+                             Mediator = df$bg, 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  }
+  
+  contingency_tables_disability_depanx[[table_name]] <- contingency_table
+}
+
+contingency_tables_disability_depanx
+```
+
+### Exposure Disability Only, No Dep/Anx/Bip
+
+```{r, echo = FALSE}
+
+contingency_tables_disability_no_depanx <- list()
+
+for (med in M) {
+  df <- disability_only_no_depanx_subset
+  table_name <- paste("Mediator", med, sep = "_")
+    if(med != "mediator_opioid_gaba_copresc")
+  {
+  contingency_table <- table(Exposure_disability_only_no_depanx = df$exposure_disability_only_subset, 
+                             Mediator = df[[med]], 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+    }else{
+      df$bg <- factor(case_when(df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 1 ~ "bg",
+                         df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 0 ~ "g",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 1 ~ "b",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 0 ~ "0",
+                         ), levels = c("0", "g", "b", "bg"))
+      contingency_table <- table(Exposure_disability_only_depanx = df$exposure_disability_only_subset, 
+                             Mediator = df$bg, 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  }
+  
+  contingency_tables_disability_no_depanx[[table_name]] <- contingency_table
+}
+
+contingency_tables_disability_no_depanx
+```
+
+
+### Exposure Pain Only, Has Dep/Anx/Bip
+
+```{r, echo = FALSE}
+
+contingency_tables_pain_depanx <- list()
+
+for (med in M) {
+    df <- pain_depanx
+    table_name <- paste("Mediator", med, sep = "_")
+      if(med != "mediator_opioid_gaba_copresc")
+  {
+    contingency_table <- table(Exposure_pain_only_depanx = df$exposure_pain_only, 
+                               Mediator = df[[med]], 
+                               Outcome = df$oud_24mo_icd,
+                               useNA = "ifany")
+      } else{
+      df$bg <- factor(case_when(df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 1 ~ "bg",
+                         df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 0 ~ "g",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 1 ~ "b",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 0 ~ "0",
+                         ), levels = c("0", "g", "b", "bg"))
+      contingency_table <- table(Exposure_pain_only_depanx = df$exposure_pain_only, 
+                             Mediator = df$bg, 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  }
+    
+    contingency_tables_pain_depanx[[table_name]] <- contingency_table
+}
+
+contingency_tables_pain_depanx
+```
+
+### Exposure Pain Only, No Dep/Anx/Bip
+
+```{r, echo = FALSE}
+
+contingency_tables_pain_nodepanx <- list()
+
+for (med in M) {
+    df <- pain_only_no_depanx
+    table_name <- paste("Mediator", med, sep = "_")
+      if(med != "mediator_opioid_gaba_copresc")
+  {
+    contingency_table <- table(Exposure_pain_only_nodepanx = df$exposure_pain_only, 
+                               Mediator = df[[med]], 
+                               Outcome = df$oud_24mo_icd,
+                               useNA = "ifany")
+      } else{
+      df$bg <- factor(case_when(df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 1 ~ "bg",
+                         df$mediator_opioid_gaba_copresc == 1 & df$mediator_opioid_benzo_copresc == 0 ~ "g",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 1 ~ "b",
+                         df$mediator_opioid_gaba_copresc == 0 & df$mediator_opioid_benzo_copresc == 0 ~ "0",
+                         ), levels = c("0", "g", "b", "bg"))
+      contingency_table <- table(Exposure_pain_only_nodepanx = df$exposure_pain_only, 
+                             Mediator = df$bg, 
+                             Outcome = df$oud_24mo_icd,
+                             useNA = "ifany")
+  }
+    
+    contingency_tables_pain_nodepanx[[table_name]] <- contingency_table
+}
+
+contingency_tables_pain_nodepanx
+```
